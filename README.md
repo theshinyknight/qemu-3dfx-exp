@@ -1,6 +1,6 @@
-# QEMU MESA GL/3Dfx Glide Pass-Through
-Copyright (C) 2018-2022<br>
-KJ Liew \<liewkj@yahoo.com\>
+# - Experimental/variant - QEMU MESA GL/3Dfx Glide Pass-Through
+For info on the project, refer to the original project page. This fork is just an experiment to try out some changes
+
 ## Content
     qemu-0/hw/3dfx      - Overlay for QEMU source tree to add 3Dfx Glide pass-through device model
     qemu-1/hw/mesa      - Overlay for QEMU source tree to add MESA GL pass-through device model
@@ -11,57 +11,105 @@ KJ Liew \<liewkj@yahoo.com\>
     00-qemu82x-mesa-glide.patch - Patch for QEMU version 8.2.x (MESA & Glide)
     01-qemu72x-mesa-glide.patch - Patch for QEMU version 7.2.x (MESA & Glide)
     02-qemu620-mesa-glide.patch - Patch for QEMU version 6.2.0 (MESA & Glide)
-## QEMU Windows Guests Glide/OpenGL/Direct3D Acceleration
-Witness, experience and share your thoughts on modern CPU/GPU prowess for retro Windows games on Apple Silicon macOS, Windows 10/11 and modern Linux. Most games can be installed and played in pristine condition without the hassle of hunting down unofficial, fan-made patches to play them on Windows 10/later or modern Linux/Wine.
-- YouTube channel (https://www.youtube.com/channel/UCl8InhZs1ixZBcLrMDSWd0A/videos)
-- VOGONS forums (https://www.vogons.org)
-- Wiki (https://github.com/kjliew/qemu-3dfx/wiki)
+
 ## Building QEMU
-Following instructions are based on `MSYS2/mingw-w64` BASH shell environment on Windows 10/11. It is meant to be simple and minor variations are inevitable due to different flavors of Linux distributions.
+This seems to be the biggest hurdle that many people encounter. I am trying this on a Windows 11 machine as host, and targeting a Windows Xp 32 bit machine. I started from a fresh install of W11 with minimal apps installed, so your mileage may vary, depending from what you tried before and what you already installed.
 
-Simple guide to apply the patch:<br>
-(using `00-qemu82x-mesa-glide.patch`)
+This is the overall sequence of events to build the project: 
 
-    $ mkdir ~/myqemu && cd ~/myqemu
-    $ git clone https://github.com/kjliew/qemu-3dfx.git
-    $ cd qemu-3dfx
-    $ wget https://download.qemu.org/qemu-8.2.1.tar.xz
-    $ tar xf qemu-8.2.1.tar.xz
-    $ cd qemu-8.2.1
-    $ rsync -r ../qemu-0/hw/3dfx ../qemu-1/hw/mesa ./hw/
-    $ patch -p0 -i ../00-qemu82x-mesa-glide.patch
-    $ bash ../scripts/sign_commit
-    $ mkdir ../build && cd ../build
-    $ ../qemu-8.2.1/configure && make
+- Install Msys2; the standard location is fine, or use a custom location if you don't like the C:\ default location
+- Once done, run **MSYS2 UCRT64** shell and type the following command
+  
+```pacman -Syu```
+
+- Restart if needed; depending from how many items you need to update the app may just close to update; run again the **UCRT64** app and type
+
+```pacman -Su```
+
+- Now you need to install all the basic tools required to cross build; you have a 64 bit and need to install tools for the 64 and the 32 bit, as your target system is either W98 or XP most likely, so you will need to swap between different versions of the MSYS2 apps. For now you will need to install these tools in the UCRT64 version, so be sure you launch the right version of the tool, or this whole thing will fail. Start installing the tools with these commands
+
+```pacman -S base-devel mingw-w64-x86_64-toolchain git python ninja rsync patch```
+
+```pacman -S mingw-w64-x86_64-glib2 mingw-w64-x86_64-pixman python-setuptools```
+
+```pacman -S mingw-w64-x86_64-gtk3 mingw-w64-x86_64-SDL2 mingw-w64-x86_64-libslirp```
+
+- With this you are done with the tools; now close this version of MSYS2 and from your start menu, find the MSYS2 version called **MINGW64** and you are ready to check out the project repo and start to patch and build Qemu.
+
+- Create a new directory; at this point you should be in your "home" folder (use ```pwd``` command to check where are you if you are lost); so you can use the original info from the main project
+
+```mkdir ~/myqemu && cd ~/myqemu```
+
+```git clone https://github.com/kjliew/qemu-3dfx.git```
+
+```cd qemu-3dfx```
+
+```wget https://download.qemu.org/qemu-8.2.1.tar.xz```
+
+- If you are having issues with wget to retrieve the file, just use your browser, grab the file and copy it in your MSYS2 home folder manually
+
+```tar xf qemu-8.2.1.tar.xz```
+
+```tar xf qemu-8.2.1.tar.xz```
+
+- Run the Tar command twice; the first time it will tell you that some folders are not available; while the second time it will tell you that some files already exist; I had issues when running it just once so I just ran it twice and it was working; no clue why.
+
+```rsync -r ../qemu-0/hw/3dfx ../qemu-1/hw/mesa ./hw/```
+
+```patch -p0 -i ../00-qemu82x-mesa-glide.patch```
+
+```bash ../scripts/sign_commit```
+
+```mkdir ../build && cd ../build```
+
+```../qemu-8.2.1/configure```
+
+- If the output of the previous command is not giving you errors, you should be ready to actually build with the next command. Otherwise try to solve the issue before running the make command, as it is useless to try to do so before completing the configuration successfully
+
+```make```
+
+- Once done, you should have a bunch of EXE files in the build folder; which are the Qemu files patched. Now you need to build the ***Guest Wrappers***. You can close the **MSYS2 APP** now, as you will not need it for the next step.
+- If something failed, trace back your steps and repeat the steps again. Usually it is better to just delete the whole folder you checked out and start from scratch
+
 
 ## Building Guest Wrappers
-**Requirements:**
- - `base-devel` (make, sed, xxd etc.)
- - `gendef, shasum`
- - `mingw32` cross toolchain (`binutils, gcc, windres, dlltool`) for WIN32 DLL wrappers
- - `Open-Watcom-1.9/v2.0` or `Watcom C/C++ 11.0` for DOS32 OVL wrapper
- - `{i586,i686}-pc-msdosdjgpp` cross toolchain (`binutils, gcc, dxe3gen`) for DJGPP DXE wrappers
-<br>
+Now you will need to produce the binaries for the target system, which is a 32 bit system, while you have a 64 bit system. From your start menu, find the **MSYS2 MINGW32** app and run it; this is going to open in the same "home" location as you were before, so all your previous files will still be there, but you need to install the specific tools for the 32 bit side of the house. Run these commands
 
-**GCC Re-Targeting for DJGPP**<br>
-An old-stable version of GCC was cherry-picked to re-target for DJGPP. There were no specific reason and no customization on GCC sources.
+```pacman -S base-devel mingw-w64-i686-toolchain git python ninja rsync patch```
 
-    Target: i686-pc-msdosdjgpp
-    Configured with: ../gcc-7.5.0/configure --prefix=/opt/djgpp --target=i686-pc-msdosdjgpp --enable-languages=c,lto,c++ \
-        --enable-lto --enable-graphite --disable-nls --disable-win32-registry --with-arch=i686 --with-tune=generic
-    Thread model: single
-    gcc version 7.5.0 (GCC)
-<br>
+```pacman -S mingw-w64-i686-glib2 mingw-w64-i686-pixman python-setuptools```
 
-    $ cd ~/myqemu/qemu-3dfx/wrappers/3dfx
-    $ mkdir build && cd build
-    $ bash ../../../scripts/conf_wrapper
-    $ make && make clean
+```pacman -S mingw-w64-i686-gtk3 mingw-w64-i686-SDL2 mingw-w64-i686-libslirp```
 
-    $ cd ~/myqemu/qemu-3dfx/wrappers/mesa
-    $ mkdir build && cd build
-    $ bash ../../../scripts/conf_wrapper
-    $ make && make clean
+- Now move to the wrappers folder, starting with the 3dfx folder and build
+
+```cd ~/myqemu/qemu-3dfx/wrappers/3dfx```
+
+```mkdir build && cd build```
+
+```bash ../../../scripts/conf_wrapper```
+
+- Check that the output here is not giving you any error; if this fail, you need to solve the problem before you can continue. If something is missing it means you are missing a package or using the wrong executable (like you are using the wrong version of **MSYS2**); trace back your steps and figure that out
+
+```make```
+
+```make clean```
+
+- You should have at this point the DLLs for your W98/Xp system in the build folder. Repeat the same steps for the **Mesa** folder to produce the **OGL** library
+
+```cd ~/myqemu/qemu-3dfx/wrappers/mesa```
+
+```mkdir build && cd build```
+
+```bash ../../../scripts/conf_wrapper```
+
+- Check that the output here is not giving you any error; if this fail, you need to solve the problem before you can continue. If something is missing it means you are missing a package or using the wrong executable (like you are using the wrong version of **MSYS2**); trace back your steps and figure that out
+
+```make```
+
+```make clean```
+
+- And with this, you have all the libraries you need for the installation.
 
 ## Installing Guest Wrappers
 **For Win9x/ME:**  
@@ -75,23 +123,10 @@ An old-stable version of GCC was cherry-picked to re-target for DJGPP. There wer
  - Copy `GLIDE.DLL`, `GLIDE2X.DLL` and `GLIDE3X.DLL` to `%SystemRoot%\system32`  
  - Run `INSTDRV.EXE`, require Administrator Priviledge  
  - Copy `OPENGL32.DLL` to `Game Installation` folders
- 
-## Donation
-If this project helps you relive the nostalgic memory of Good Old Windows Games, you can now donate in the course of supporting **Games Preservation** with QEMU. Your donation also motivates and encourages further research in making QEMU the ultimate platform for Retro Windows Games.
 
-For $89.99 donation, you will deserve the following donor's privileges:
-- QEMU binary package built for platform of your choice (choose **ONE**: Windows 10/11, Ubuntu, etc.)
-- QEMU-enhanced OpenGLide **Host-side wrappers** built for platform of your choice (choose **ONE**: Windows 10/11, Ubuntu, etc.)
-- QEMU-enhanced [**WineD3D libraries for Win98/2K/ME/XP VMs**](https://www.winehq.org) for DirectDraw/Direct3D games up to DirectX 9.0c
-- Game controllers support with [**QEMU USB Gamepad**](https://github.com/kjliew/qemu-3dfx/wiki/QEMU-USB-Gamepad)
-- SDL2 clipboard sharing through built-in [**QEMU vdagent**](https://www.kraxel.org/blog/2021/05/qemu-cut-paste/)
-- OpenGLide **Guest-side wrappers** for Windows
-- Elect up to 5 games for priority support and your name as the honorary sponsor in the supported & tested list of games.
+For copying files I just created a folder where I place all the files, then I make a ISO out of that folder with a free tool for Windows, and mount it with Qemu, so I can copy the files on the image. At that point you should be good to go to start experimenting on your own. 
 
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=XE47KTASERX4A)
-### A Note to Donation
-The purpose of the donation is for preserving retailed CD/DVD games in their originality. It may be used to purchase the game online or from local thrift shops. The donation is **NOT** the ticket for one to learn how to use QEMU Virtual Machine in general. Sometimes, it may be difficult to get virtualization acceleration working and that would result in serious degradation of game experience with QEMU. It is a **willing donation pledge and non-refundable**. Many classic Windows games also have re-releases from GOG/Steam that work on Windows 10/11 and modern Linux. It can be an option to consider before making a donation.
+ -------------------
+Thanks to KJ Liew <liewkj@yahoo.com> for creating this wrapper. If you want to support the original project, and donate to the original author, you can do that on the main project page from which this project was branched from.
 
-Donations without leaving notes on **Platform of Choice** are regarded as upper-class donors who have no desire in exercising donor's privileges. A measure to avoid unneccessary spamming on emails. Donors are expected to proactively follow up the communication to exercise donor's privileges as wished. All donations are tracked in PayPal transaction history. Only **"ONE"** platform of choice per donation. Upgrades eligibility are limited to the **SAME** platform of choice.
-### About Game Election
-The game election serves the purpose of allocating additional focus and resources to make them work. Sometimes, it means considerable efforts in researching, debugging and tracing the games to root cause the failures and come up with solutions. It is **optional** to make game election upon donation. My YouTube channel has video demos of games which already worked and more may be showing up periodically. It is typically a safe assumption that games using the same engine (IdTech1/2/3, LithTech, Unreal etc.) would also work, too. The _N_ counts of eligibility would only be accounted once the game were made to work. If upgrades were neccessary, it would be a **free upgrade** for QEMU binary packages.
+
